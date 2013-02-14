@@ -21,4 +21,4 @@ Options:
                                     - breaching lower band causes a warn
     -L --critlower              Lower Holt-Winters band breach causes a crit,
                                     - breaching upper band causes a warn
-    (If neither -U nor -L are given, we will always warn)
+    (If -W, but neither -U nor -L are given, we will always warn)

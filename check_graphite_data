@@ -34,7 +34,7 @@ def usage():
     print '\t\t\t\t\t- breaching lower band causes a warn'
     print '\t-L --critlower\t\t\tLower Holt-Winters band breach causes a crit,'
     print '\t\t\t\t\t- breaching upper band causes a warn'
-    print '\t(If neither -U nor -L are given, we will always warn)'
+    print '\t(If -W, but neither -U nor -L are given, we will always warn)'
 
 
 def pull_graphite_data(url, timeout):
