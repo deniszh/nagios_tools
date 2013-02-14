@@ -3,12 +3,17 @@
 import getopt
 import sys
 import urllib
+import signal
 
 STATE_OK = 0
 STATE_WARNING = 1
 STATE_CRITICAL = 2
 STATE_UNKNOWN = 3
 STATE_DEPENDENT = 4
+
+class TimeoutException(Exception):
+    def __str__(self):
+        return "Timeout error"
 
 def usage():
     print 'Usage:'
@@ -19,6 +24,7 @@ def usage():
     print '\t-u <url> --url=<url>\t\tGraphite graph URL'
     print '\t-r\t\t\t\tReverse - Alert when the value is UNDER warn/crit instead of OVER'
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
+    print '\t-t <secs> --timeout=<secs>\tGraphite response timeout (default 10 sec)'
     print '\t--d1 <url> --d2 <url>\t\tDiff the latest values between two graphs'
     print '\t-W --holt-winters\t\tPerform a Holt-Winters check'
     print '\t\t\t\t\t- See https://github.com/ripienaar/graphite-graph-dsl/wiki/Creating-Holt-Winters-Forecasts'
@@ -29,12 +35,22 @@ def usage():
     print '\t(If neither -U nor -L are given, we will always warn)'
 
 
-def pull_graphite_data(url):
+def pull_graphite_data(url, timeout=10):
     """Pull down raw data from Graphite"""
+
+    def timeout_handler(signum, frame):
+        raise TimeoutException()
+
     # Make sure the url ends with '&rawData'
     if not url.endswith('&rawData'):
         url = url + '&rawData'
-    data = urllib.urlopen(url).read()
+
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout)
+    try:
+        data = urllib.urlopen(url).read()
+    finally:
+        signal.signal(signal.SIGALRM, old_handler)
     return data
 
 
@@ -69,10 +85,10 @@ def eval_graphite_data(data, seconds):
     return data_value
 
 
-def get_hw_value(url, seconds=0):
+def get_hw_value(url, seconds=0, timeout=10):
     """Get the Holt-Winters value from a Graphite graph"""
 
-    data = pull_graphite_data(url)
+    data = pull_graphite_data(url, timeout)
     for line in data.split():
         if line.startswith('holtWintersConfidenceUpper'):
             graphite_upper = eval_graphite_data(line, seconds)
@@ -84,20 +100,20 @@ def get_hw_value(url, seconds=0):
     return graphite_data, graphite_lower, graphite_upper
 
 
-def get_value(url, seconds=0):
+def get_value(url, seconds=0, timeout=10):
     """Get the value from a Graphite graph"""
 
-    data = pull_graphite_data(url)
+    data = pull_graphite_data(url, timeout)
     data_value = eval_graphite_data(data, seconds)
     return data_value
 
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, 'hWULru:c:w:s:',
+        opts, args = getopt.getopt(argv, 'hWULru:c:w:s:t:',
                                     ['help', 'holt-winters', 'critupper',
                                      'critlower', 'url=', 'crit=', 'warn=',
-                                     'seconds=', 'd1=', 'd2='])
+                                     'seconds=', 'timeout=', 'd1=', 'd2='])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(STATE_UNKNOWN)
@@ -106,6 +122,7 @@ def main(argv):
     warn = None
     crit = None
     seconds = 0
+    timeout = 10
     diff1 = None
     diff2 = None
     reverse = False
@@ -124,6 +141,8 @@ def main(argv):
             crit = float(arg)
         elif opt in ('-s', '--seconds'):
             seconds = int(arg)
+        elif opt in ('-t', '--timeout'):
+            timeout = int(arg)
         elif opt in ('-r'):
             reverse = True
         elif opt in ('--d1'):
@@ -146,7 +165,7 @@ def main(argv):
         sys.exit(STATE_UNKNOWN)
 
     if hw:
-        graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds)
+        graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds, timeout)
         print 'Current value: %s, lower band: %s, upper band: %s' % \
                (graphite_data, graphite_lower, graphite_upper)
         if (graphite_data > graphite_upper) or (graphite_data < graphite_lower):
@@ -157,11 +176,11 @@ def main(argv):
         else:
             sys.exit(STATE_OK)
     elif diff1 or diff2:
-        graphite_data1 = get_value(diff1, seconds)
-        graphite_data2 = get_value(diff2, seconds)
+        graphite_data1 = get_value(diff1, seconds, timeout)
+        graphite_data2 = get_value(diff2, seconds, timeout)
         graphite_data = abs(graphite_data1 - graphite_data2)
     else:
-        graphite_data = get_value(url, seconds)
+        graphite_data = get_value(url, seconds, timeout)
 
     print 'Current value: %s, warn threshold: %s, crit threshold: %s' % \
            (graphite_data, warn, crit)

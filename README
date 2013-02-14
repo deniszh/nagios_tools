@@ -12,6 +12,7 @@ Options:
     -u <url> --url=<url>        Graphite graph URL
     -r                          Reverse - Alert when the value is UNDER warn/crit instead of OVER
     -s <secs> --seconds=<secs>  Average over the last N seconds of data
+    -t <secs> --timeout=<secs>  Graphite response timeout (default 10 sec)
     --d1 <url> --d2 <url>       Diff the latest values between two graphs
     -W --holt-winters           Perform a Holt-Winters check
                                 See https://github.com/ripienaar/graphite-graph-dsl/wiki/Creating-Holt-Winters-Forecasts
