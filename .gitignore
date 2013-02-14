@@ -1,0 +1,9 @@
+.idea/
+debian/aurora-deployment.substvars
+debian/aurora-deployment/
+*.pyc
+aurora_deployment.egg-info/
+build/
+debian/aurora-deployment.debhelper.log
+debian/aurora-deployment.postinst.debhelper
+debian/aurora-deployment.prerm.debhelper

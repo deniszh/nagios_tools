@@ -21,6 +21,7 @@ def usage():
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
     print '\t--d1 <url> --d2 <url>\t\tDiff the latest values between two graphs'
     print '\t-W --holt-winters\t\tPerform a Holt-Winters check'
+    print '\t\t\t\t\t- See https://github.com/ripienaar/graphite-graph-dsl/wiki/Creating-Holt-Winters-Forecasts'
     print '\t-U --critupper\t\t\tUpper Holt-Winters band breach causes a crit,'
     print '\t\t\t\t\t- breaching lower band causes a warn'
     print '\t-L --critlower\t\t\tLower Holt-Winters band breach causes a crit,'

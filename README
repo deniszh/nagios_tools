@@ -1,8 +1,9 @@
-Some handy scripts we've written for Nagios, at Etsy:
-
 
 check_graphite_data:
     Alert on data, based on number from Graphite.
+    Based on script written by Etsy - https://github.com/etsy/nagios_tools
+    with additional fixes and improvements from community - https://github.com/etsy/nagios_tools/network
+
 Usage:
     check_graphite_data <options>
 Options:
@@ -13,6 +14,7 @@ Options:
     -s <secs> --seconds=<secs>  Average over the last N seconds of data
     --d1 <url> --d2 <url>       Diff the latest values between two graphs
     -W --holt-winters           Perform a Holt-Winters check
+                                See https://github.com/ripienaar/graphite-graph-dsl/wiki/Creating-Holt-Winters-Forecasts
     -U --critupper              Upper Holt-Winters band breach causes a crit,
                                     - breaching lower band causes a warn
     -L --critlower              Lower Holt-Winters band breach causes a crit,
