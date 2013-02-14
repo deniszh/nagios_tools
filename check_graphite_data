@@ -51,6 +51,9 @@ def pull_graphite_data(url, timeout=10):
         data = urllib.urlopen(url).read()
     finally:
         signal.signal(signal.SIGALRM, old_handler)
+    if not data:
+        print 'Error: %s returned nothing. Wrong path?' % url
+        sys.exit(STATE_UNKNOWN)
     return data
 
 
@@ -164,23 +167,27 @@ def main(argv):
         usage()
         sys.exit(STATE_UNKNOWN)
 
-    if hw:
-        graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds, timeout)
-        print 'Current value: %s, lower band: %s, upper band: %s' % \
-               (graphite_data, graphite_lower, graphite_upper)
-        if (graphite_data > graphite_upper) or (graphite_data < graphite_lower):
-            if critupper or critlower:
-                sys.exit(STATE_CRITICAL)
+    try:
+        if hw:
+            graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds, timeout)
+            print 'Current value: %s, lower band: %s, upper band: %s' % \
+                   (graphite_data, graphite_lower, graphite_upper)
+            if (graphite_data > graphite_upper) or (graphite_data < graphite_lower):
+                if critupper or critlower:
+                    sys.exit(STATE_CRITICAL)
+                else:
+                    sys.exit(STATE_WARNING)
             else:
-                sys.exit(STATE_WARNING)
+                sys.exit(STATE_OK)
+        elif diff1 or diff2:
+            graphite_data1 = get_value(diff1, seconds, timeout)
+            graphite_data2 = get_value(diff2, seconds, timeout)
+            graphite_data = abs(graphite_data1 - graphite_data2)
         else:
-            sys.exit(STATE_OK)
-    elif diff1 or diff2:
-        graphite_data1 = get_value(diff1, seconds, timeout)
-        graphite_data2 = get_value(diff2, seconds, timeout)
-        graphite_data = abs(graphite_data1 - graphite_data2)
-    else:
-        graphite_data = get_value(url, seconds, timeout)
+            graphite_data = get_value(url, seconds, timeout)
+    except Exception, e:
+        print 'Error getting data from graphite: %s' % e
+        sys.exit(STATE_UNKNOWN)
 
     print 'Current value: %s, warn threshold: %s, crit threshold: %s' % \
            (graphite_data, warn, crit)
