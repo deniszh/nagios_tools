@@ -199,7 +199,10 @@ def main(argv):
             graphite_data = abs(graphite_data1 - graphite_data2)
             if percent:
                 graphite_data = round(graphite_data / graphite_data1 * 100, 1)
-                unit = '%'
+                if unit:
+                    unit = '% of ' + unit
+                else:
+                    unit = '%'
         else:
             graphite_data = get_value(url, seconds, timeout, backlog)
     except Exception as e:
