@@ -6,15 +6,18 @@ import urllib
 import signal
 import time
 
+
 STATE_OK = 0
 STATE_WARNING = 1
 STATE_CRITICAL = 2
 STATE_UNKNOWN = 3
 STATE_DEPENDENT = 4
 
+
 class TimeoutException(Exception):
     def __str__(self):
         return "Timeout error"
+
 
 def usage():
     print 'Usage:'
@@ -54,7 +57,7 @@ def pull_graphite_data(url, timeout):
     finally:
         signal.signal(signal.SIGALRM, old_handler)
     if not data:
-        print 'Error: %s returned nothing. Wrong path?' % url
+        print('Error: {0:s} returned nothing. Wrong path?'.format(url))
         sys.exit(STATE_UNKNOWN)
     return data
 
@@ -66,7 +69,7 @@ def eval_graphite_data(data, seconds, backlog):
     key, start, end, sample_period = header.split(',')
     sample_period = int(sample_period)
     if end < time.time() + sample_period * backlog:
-        print 'Error: data to old, last data point: %s' % time.ctime(end)
+        print('Error: data to old, last data point: {0:s}'.format(time.ctime(end)))
         sys.exit(STATE_UNKNOWN)
 
     all_data_points = data.split('|')[-1].split(',')
@@ -77,15 +80,14 @@ def eval_graphite_data(data, seconds, backlog):
     # If that data point is None, grab the one before it.
     # If that is None too, return 0.0.
     if seconds <= sample_period:
-        data_value = ([ float(x) for x in all_data_points[-2:] if x != "None" ] or [0.0])[-1]
+        data_value = ([float(x) for x in all_data_points[-2:] if x != "None"] or [0.0])[-1]
     else:
     # Second, if we requested more than on graphite sample period, work out how
     # many sample periods we wanted (python always rounds division *down*)
-        data_points = (seconds/sample_period)
-        data_set = [ float(x) for x in all_data_points[-data_points:]
-                     if x != "None" ]
+        data_points = (seconds / sample_period)
+        data_set = [float(x) for x in all_data_points[-data_points:] if x != "None"]
         if data_set:
-            data_value = float( sum(data_set) / len(data_set) )
+            data_value = float(sum(data_set) / len(data_set))
         else:
             data_value = 0.0
     return data_value
@@ -94,6 +96,7 @@ def eval_graphite_data(data, seconds, backlog):
 def get_hw_value(url, seconds=0, timeout=10, backlog=5):
     """Get the Holt-Winters value from a Graphite graph"""
 
+    graphite_data, graphite_lower, graphite_upper = None
     data = pull_graphite_data(url, timeout)
     for line in data.split():
         if line.startswith('holtWintersConfidenceUpper'):
@@ -117,11 +120,11 @@ def get_value(url, seconds=0, timeout=10, backlog=5):
 def main(argv):
     try:
         opts, args = getopt.getopt(argv, 'hWULru:c:w:s:t:b:',
-                                    ['help', 'holt-winters', 'critupper',
-                                     'critlower', 'url=', 'crit=', 'warn=',
-                                     'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2='])
-    except getopt.GetoptError, err:
-        print str(err)
+                                   ['help', 'holt-winters', 'critupper',
+                                    'critlower', 'url=', 'crit=', 'warn=',
+                                    'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2='])
+    except getopt.GetoptError as e:
+        print('Wrong options: %s' % e)
         sys.exit(STATE_UNKNOWN)
 
     url = None
@@ -152,11 +155,11 @@ def main(argv):
             timeout = int(arg)
         elif opt in ('-b', '--backlog'):
             backlog = int(arg)
-        elif opt in ('-r'):
+        elif opt in '-r':
             reverse = True
-        elif opt in ('--d1'):
+        elif opt in '--d1':
             diff1 = arg
-        elif opt in ('--d2'):
+        elif opt in '--d2':
             diff2 = arg
         elif opt in ('-W', '--holtwinters'):
             hw = True
@@ -164,20 +167,18 @@ def main(argv):
             critupper = True
         elif opt in ('-L', '--critlower'):
             critlower = True
-    if not hw and ((url == None) or (warn == None) or (crit == None)) \
-            and not diff1 and not diff2:
+    if not hw and ((url is None) or (warn is None) or (crit is None)) and not diff1 and not diff2:
         usage()
         sys.exit(STATE_UNKNOWN)
 
-    if (diff1 == None and diff2 != None) or (diff1 != None and diff2 == None):
+    if (diff1 is None and diff2 is not None) or (diff1 is not None and diff2 is None):
         usage()
         sys.exit(STATE_UNKNOWN)
 
     try:
         if hw:
             graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds, timeout, backlog)
-            print 'Current value: %s, lower band: %s, upper band: %s' % \
-                   (graphite_data, graphite_lower, graphite_upper)
+            print 'Current value: %s, lower band: %s, upper band: %s' % (graphite_data, graphite_lower, graphite_upper)
             if (graphite_data > graphite_upper) or (graphite_data < graphite_lower):
                 if critupper or critlower:
                     sys.exit(STATE_CRITICAL)
@@ -191,13 +192,13 @@ def main(argv):
             graphite_data = abs(graphite_data1 - graphite_data2)
         else:
             graphite_data = get_value(url, seconds, timeout, backlog)
-    except Exception, e:
-        print 'Error getting data from graphite: %s' % e
+    except Exception as e:
+        print
+        'Error getting data from graphite: %s' % e
         sys.exit(STATE_UNKNOWN)
 
-    print 'Current value: %s, warn threshold: %s, crit threshold: %s' % \
-           (graphite_data, warn, crit)
-    if reverse == True:
+    print 'Current value: %s, warn threshold: %s, crit threshold: %s' % (graphite_data, warn, crit)
+    if reverse:
         if crit >= graphite_data:
             sys.exit(STATE_CRITICAL)
         elif warn >= graphite_data:
