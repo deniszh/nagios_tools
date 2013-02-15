@@ -25,6 +25,7 @@ def usage():
     print 'Options:'
     print '\t-c <num> --crit=<num>\t\tCritical threshold'
     print '\t-w <num> --warn=<num>\t\tWarning threshold'
+    print '\t-p       --percent\t\tThresholds for diff check is in percent, not absolute values'
     print '\t-u <url> --url=<url>\t\tGraphite graph URL'
     print '\t-r\t\t\t\tReverse - Alert when the value is UNDER warn/crit instead of OVER'
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
@@ -119,9 +120,9 @@ def get_value(url, seconds=0, timeout=10, backlog=5):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, 'hWULru:c:w:s:t:b:',
-                                   ['help', 'holt-winters', 'critupper',
-                                    'critlower', 'url=', 'crit=', 'warn=',
+        opts, args = getopt.getopt(argv, 'hWULrpu:c:w:s:t:b:n:',
+                                   ['help', 'holt-winters', 'critupper', 'unit=',
+                                    'critlower', 'url=', 'crit=', 'warn=', 'percent'
                                     'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2='])
     except getopt.GetoptError as e:
         print('Wrong options: %s' % e)
@@ -135,6 +136,8 @@ def main(argv):
     backlog = 5
     diff1 = None
     diff2 = None
+    percent = False
+    unit = None
     reverse = False
     hw = None
     critupper = None
@@ -161,6 +164,10 @@ def main(argv):
             diff1 = arg
         elif opt in '--d2':
             diff2 = arg
+        elif opt in ('-p', '--percent'):
+            percent = True
+        elif opt in ('-n', '--unit'):
+            unit = str(arg)
         elif opt in ('-W', '--holtwinters'):
             hw = True
         elif opt in ('-U', '--critupper'):
@@ -190,13 +197,20 @@ def main(argv):
             graphite_data1 = get_value(diff1, seconds, timeout, backlog)
             graphite_data2 = get_value(diff2, seconds, timeout, backlog)
             graphite_data = abs(graphite_data1 - graphite_data2)
+            if percent:
+                graphite_data = round(graphite_data / graphite_data1 * 100, 1)
+                unit = '%'
         else:
             graphite_data = get_value(url, seconds, timeout, backlog)
     except Exception as e:
         print 'Error getting data from graphite: %s' % e
         sys.exit(STATE_UNKNOWN)
 
-    print 'Current value: %s, warn threshold: %s, crit threshold: %s' % (graphite_data, warn, crit)
+    if unit:
+        print 'Current value: %s %s, warn threshold: %s %s, crit threshold: %s %s' % (graphite_data, unit, warn, unit, crit, unit)
+    else:
+        print 'Current value: %s, warn threshold: %s, crit threshold: %s' % (graphite_data, warn, crit)
+
     if reverse:
         if crit >= graphite_data:
             sys.exit(STATE_CRITICAL)
