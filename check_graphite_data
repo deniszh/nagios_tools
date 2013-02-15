@@ -30,6 +30,7 @@ def usage():
     print '\t-r\t\t\t\tReverse - Alert when the value is UNDER warn/crit instead of OVER'
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
     print '\t-t <secs> --timeout=<secs>\tGraphite response timeout (default 10 sec)'
+    print '\t-l <secs> --datalimit=<secs> Grab data for last N seconds only'
     print '\t-b <num> --backlog=<num>\tAllow check freshness of data (default 5 sample intervals)'
     print '\t--d1 <url> --d2 <url>\t\tDiff the latest values between two graphs'
     print '\t-W --holt-winters\t\tPerform a Holt-Winters check'
@@ -41,7 +42,7 @@ def usage():
     print '\t(If -W, but neither -U nor -L are given, we will always warn)'
 
 
-def pull_graphite_data(url, timeout):
+def pull_graphite_data(url, datalimit, timeout):
     """Pull down raw data from Graphite"""
 
     def timeout_handler(signum, frame):
@@ -50,6 +51,10 @@ def pull_graphite_data(url, timeout):
     # Make sure the url ends with '&rawData'
     if not url.endswith('&rawData'):
         url = url + '&rawData'
+
+    # limit data pulling from graphite
+    if datalimit:
+        url = url + '&from=-%sseconds' % (datalimit)
 
     old_handler = signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
@@ -94,11 +99,11 @@ def eval_graphite_data(data, seconds, backlog):
     return data_value
 
 
-def get_hw_value(url, seconds=0, timeout=10, backlog=5):
+def get_hw_value(url, datalimit, seconds=0, timeout=10, backlog=5):
     """Get the Holt-Winters value from a Graphite graph"""
 
     graphite_data, graphite_lower, graphite_upper = None
-    data = pull_graphite_data(url, timeout)
+    data = pull_graphite_data(url, datalimit, timeout)
     for line in data.split():
         if line.startswith('holtWintersConfidenceUpper'):
             graphite_upper = eval_graphite_data(line, seconds, backlog)
@@ -110,18 +115,18 @@ def get_hw_value(url, seconds=0, timeout=10, backlog=5):
     return graphite_data, graphite_lower, graphite_upper
 
 
-def get_value(url, seconds=0, timeout=10, backlog=5):
+def get_value(url, datalimit, seconds=0, timeout=10, backlog=5):
     """Get the value from a Graphite graph"""
 
-    data = pull_graphite_data(url, timeout)
+    data = pull_graphite_data(url, datalimit, timeout)
     data_value = eval_graphite_data(data, seconds, backlog)
     return data_value
 
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, 'hWULrpu:c:w:s:t:b:n:',
-                                   ['help', 'holt-winters', 'critupper', 'unit=',
+        opts, args = getopt.getopt(argv, 'hWULrpu:c:w:s:t:b:n:l:',
+                                   ['help', 'holt-winters', 'critupper', 'unit=', 'datalimit=',
                                     'critlower', 'url=', 'crit=', 'warn=', 'percent'
                                     'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2='])
     except getopt.GetoptError as e:
@@ -134,6 +139,7 @@ def main(argv):
     seconds = 0
     timeout = 10
     backlog = 5
+    datalimit = None
     diff1 = None
     diff2 = None
     percent = False
@@ -156,6 +162,8 @@ def main(argv):
             seconds = int(arg)
         elif opt in ('-t', '--timeout'):
             timeout = int(arg)
+        elif opt in ('-l', '--datalimit'):
+            datalimit = int(arg)
         elif opt in ('-b', '--backlog'):
             backlog = int(arg)
         elif opt in '-r':
@@ -184,7 +192,7 @@ def main(argv):
 
     try:
         if hw:
-            graphite_data, graphite_lower, graphite_upper = get_hw_value(url, seconds, timeout, backlog)
+            graphite_data, graphite_lower, graphite_upper = get_hw_value(url, datalimit, seconds, timeout, backlog)
             print 'Current value: %s, lower band: %s, upper band: %s' % (graphite_data, graphite_lower, graphite_upper)
             if (graphite_data > graphite_upper) or (graphite_data < graphite_lower):
                 if critupper or critlower:
@@ -194,8 +202,8 @@ def main(argv):
             else:
                 sys.exit(STATE_OK)
         elif diff1 or diff2:
-            graphite_data1 = get_value(diff1, seconds, timeout, backlog)
-            graphite_data2 = get_value(diff2, seconds, timeout, backlog)
+            graphite_data1 = get_value(diff1, datalimit, seconds, timeout, backlog)
+            graphite_data2 = get_value(diff2, datalimit, seconds, timeout, backlog)
             graphite_data = abs(graphite_data1 - graphite_data2)
             if percent:
                 graphite_data = round(graphite_data / graphite_data1 * 100, 1)
@@ -204,7 +212,7 @@ def main(argv):
                 else:
                     unit = '%'
         else:
-            graphite_data = get_value(url, seconds, timeout, backlog)
+            graphite_data = get_value(url, datalimit, seconds, timeout, backlog)
     except Exception as e:
         print 'Error getting data from graphite: %s' % e
         sys.exit(STATE_UNKNOWN)
