@@ -193,8 +193,7 @@ def main(argv):
         else:
             graphite_data = get_value(url, seconds, timeout, backlog)
     except Exception as e:
-        print
-        'Error getting data from graphite: %s' % e
+        print 'Error getting data from graphite: %s' % e
         sys.exit(STATE_UNKNOWN)
 
     print 'Current value: %s, warn threshold: %s, crit threshold: %s' % (graphite_data, warn, crit)
