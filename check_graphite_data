@@ -1,17 +1,19 @@
 #!/usr/bin/python
 
+from __future__ import division
 import getopt
 import sys
 import urllib
 import signal
 import time
-
+from sys import float_info
 
 STATE_OK = 0
 STATE_WARNING = 1
 STATE_CRITICAL = 2
 STATE_UNKNOWN = 3
 STATE_DEPENDENT = 4
+FLT_EPSILON = float_info.epsilon
 
 
 class TimeoutException(Exception):
@@ -73,26 +75,25 @@ def eval_graphite_data(data, seconds, backlog):
     """Get the most recent correct value from the data"""
 
     header = data.split('|')[0]
-    key, start, end, sample_period = header.split(',')
+    key, start, end, sample_period = header.rsplit(',', 3)
     sample_period = int(sample_period)
     if end < time.time() + sample_period * backlog:
         print('Error: data to old, last data point: {0:s}'.format(time.ctime(end)))
         sys.exit(STATE_UNKNOWN)
 
     all_data_points = data.split('|')[-1].split(',')
-
     # Evaluate what graphite returned, should either be a float, or None
     # First, if the number of seconds of data we want to examine is smaller or
     # equals the graphite sample period, just grab the latest data point.
     # If that data point is None, grab the one before it.
     # If that is None too, return 0.0.
     if seconds <= sample_period:
-        data_value = ([float(x) for x in all_data_points[-2:] if x != "None"] or [0.0])[-1]
+        data_value = ([float(x) for x in all_data_points[-2:] if "None" not in x] or [0.0])[-1]
     else:
     # Second, if we requested more than on graphite sample period, work out how
     # many sample periods we wanted (python always rounds division *down*)
         data_points = (seconds / sample_period)
-        data_set = [float(x) for x in all_data_points[-data_points:] if x != "None"]
+        data_set = [float(x) for x in all_data_points[-data_points:] if "None" not in x]
         if data_set:
             data_value = float(sum(data_set) / len(data_set))
         else:
@@ -211,6 +212,7 @@ def main(argv):
             graphite_data2 = get_value(diff2, datalimit, seconds, timeout, backlog)
             graphite_data = abs(graphite_data1 - graphite_data2)
             if percent:
+                graphite_data1 = graphite_data1 + 2 * FLT_EPSILON
                 graphite_data = round(graphite_data / graphite_data1 * 100, 1)
                 if unit:
                     unit = '% of ' + unit
