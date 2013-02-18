@@ -33,6 +33,7 @@ def usage():
     print '\t-l <secs> --datalimit=<secs> Grab data for last N seconds only'
     print '\t-b <num> --backlog=<num>\tAllow check freshness of data (default 5 sample intervals)'
     print '\t--d1 <url> --d2 <url>\t\tDiff the latest values between two graphs'
+    print '\t--delta1=<url> --delta2=<url>\t\tSame as --d1 --d2'
     print '\t-W --holt-winters\t\tPerform a Holt-Winters check'
     print '\t\t\t\t\t- See https://github.com/ripienaar/graphite-graph-dsl/wiki/Creating-Holt-Winters-Forecasts'
     print '\t-U --critupper\t\t\tUpper Holt-Winters band breach causes a crit,'
@@ -128,7 +129,7 @@ def main(argv):
         opts, args = getopt.getopt(argv, 'hWULrpu:c:w:s:t:b:n:l:',
                                    ['help', 'holt-winters', 'critupper', 'unit=', 'datalimit=',
                                     'critlower', 'url=', 'crit=', 'warn=', 'percent'
-                                    'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2='])
+                                    'seconds=', 'timeout=', 'backlog=', 'd1=', 'd2=', "delta1=", "delta2="])
     except getopt.GetoptError as e:
         print('Wrong options: %s' % e)
         sys.exit(STATE_UNKNOWN)
@@ -170,7 +171,11 @@ def main(argv):
             reverse = True
         elif opt in '--d1':
             diff1 = arg
+        elif opt in '--delta1':
+            diff1 = arg
         elif opt in '--d2':
+            diff2 = arg
+        elif opt in '--delta2':
             diff2 = arg
         elif opt in ('-p', '--percent'):
             percent = True
