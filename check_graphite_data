@@ -34,7 +34,7 @@ def usage():
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
     print '\t-t <secs> --timeout=<secs>\tGraphite response timeout (default 10 sec)'
     print '\t-l <secs> --datalimit=<secs> Grab data for last N seconds only'
-    print '\t-b <num> --backlog=<num>\tAllow check freshness of data (default 5 sample intervals)'
+    print '\t-b <num> --backlog=<num>\tAllow check freshness of data'
     print '\t--d1 <url> --d2 <url>\t\tDiff the latest values between two graphs'
     print '\t--delta1=<url> --delta2=<url>\t\tSame as --d1 --d2'
     print '\t-W --holt-winters\t\tPerform a Holt-Winters check'
@@ -78,9 +78,10 @@ def eval_graphite_data(data, seconds, backlog):
     header = data.split('|')[0]
     key, start, end, sample_period = header.rsplit(',', 3)
     sample_period = int(sample_period)
-    if end < time.time() + sample_period * backlog:
-        print('Error: data to old, last data point: {0:s}'.format(time.ctime(end)))
-        sys.exit(STATE_UNKNOWN)
+    if backlog:
+        if end < time.time() + sample_period * backlog:
+            print('Error: data to old, last data point: {0:s}'.format(time.ctime(end)))
+            sys.exit(STATE_UNKNOWN)
 
     all_data_points = data.split('|')[-1].split(',')
     # Evaluate what graphite returned, should either be a float, or None
@@ -141,7 +142,7 @@ def main(argv):
     crit = None
     seconds = 0
     timeout = 10
-    backlog = 5
+    backlog = None
     datalimit = None
     diff1 = None
     diff2 = None
