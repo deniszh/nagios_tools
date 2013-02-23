@@ -28,6 +28,7 @@ def usage():
     print '\t-c <num> --crit=<num>\t\tCritical threshold'
     print '\t-w <num> --warn=<num>\t\tWarning threshold'
     print '\t-p       --percent\t\tThresholds for diff check is in percent, not absolute values'
+    print '\t-a <num> --absmin=<num>\t\tIgnore diff check result, if absolute values less than <num>'
     print '\t-u <url> --url=<url>\t\tGraphite graph URL'
     print '\t-r\t\t\t\tReverse - Alert when the value is UNDER warn/crit instead of OVER'
     print '\t-s <secs> --seconds=<secs>\tAverage over the last N seconds of data'
@@ -150,6 +151,7 @@ def main(argv):
     hw = None
     critupper = None
     critlower = None
+    absmin = None
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage()
@@ -158,6 +160,8 @@ def main(argv):
             url = arg
         elif opt in ('-w', '--warn'):
             warn = float(arg)
+        elif opt in ('-a', '--absmin'):
+            absmin = float(arg)
         elif opt in ('-c', '--crit'):
             crit = float(arg)
         elif opt in ('-s', '--seconds'):
@@ -212,8 +216,12 @@ def main(argv):
             graphite_data2 = get_value(diff2, datalimit, seconds, timeout, backlog)
             graphite_data = abs(graphite_data1 - graphite_data2)
             if percent:
-                graphite_data1 = graphite_data1 + 2 * FLT_EPSILON
+                graphite_data1 += 2 * FLT_EPSILON
                 graphite_data = round(graphite_data / graphite_data1 * 100, 1)
+                if absmin:
+                    graphite_data2 += 2 * FLT_EPSILON
+                    if graphite_data1 < absmin and graphite_data2 < absmin:
+                        graphite_data = 0
                 if unit:
                     unit = '% of ' + unit
                 else:

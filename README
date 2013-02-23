@@ -10,6 +10,7 @@ Options:
     -c <num> --crit=<num>        Critical threshold
     -w <num> --warn=<num>        Warning threshold
     -p       --percent           Thresholds for diff check is in percent, not absolute values
+    -a <num> --absmin=<num>      Ignore diff check result, if absolute values less than <num>'
     -u <url> --url=<url>         Graphite graph URL
     -r                           Reverse - Alert when the value is UNDER warn/crit instead of OVER
     -s <secs> --seconds=<secs>   Average over the last N seconds of data
